@@ -24,7 +24,7 @@ int main() {
         ws.accept();
 
         if (ws.is_open()) {
-            std::cout << "WebSocket handshake successful. Waiting for timestamp (seconds and nanoseconds)..." << std::endl;
+            std::cout << "Waiting for timestamp (seconds and nanoseconds)..." << std::endl;
 
             Timestamp received_timestamp;
             beast::flat_buffer buffer;

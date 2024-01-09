@@ -23,7 +23,7 @@ int main() {
         ws.handshake("127.0.0.1", "/");
 
         if (ws.is_open()) {
-            std::cout << "WebSocket handshake successful. Sending timestamp (seconds and nanoseconds) in UTC..." << std::endl;
+            std::cout << "Sending timestamp (seconds and nanoseconds) in UTC..." << std::endl;
 
             // Get current time in UTC with seconds and nanoseconds precision
             auto now = std::chrono::system_clock::now();
