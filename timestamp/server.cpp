@@ -7,33 +7,46 @@ namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
 
+// Define a struct to hold timestamp data (seconds and nanoseconds in UTC)
+struct Timestamp {
+    uint32_t seconds;
+    uint32_t nanoseconds;
+};
+
 int main() {
     try {
         asio::io_context io_context;
-
-        // Create and bind the acceptor to listen for incoming connections
         websocket::stream<asio::ip::tcp::socket> ws(io_context);
+
         asio::ip::tcp::acceptor acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 9002));
         acceptor.accept(ws.next_layer());
 
-        // Perform WebSocket handshake
         ws.accept();
 
-        // Check if the connection is open
         if (ws.is_open()) {
-            std::cout << "Connection established. Sending timestamp..." << std::endl;
+            std::cout << "WebSocket handshake successful. Waiting for timestamp (seconds and nanoseconds)..." << std::endl;
 
-            // Get current time with seconds and nanoseconds precision
-            auto now = std::chrono::system_clock::now();
-            auto time_since_epoch = now.time_since_epoch();
-            auto seconds = std::chrono::duration_cast<std::chrono::seconds>(time_since_epoch);
-            auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(time_since_epoch - seconds);
+            Timestamp received_timestamp;
+            beast::flat_buffer buffer;
+            ws.read(buffer);
 
-            // Send timestamp message containing seconds and nanoseconds
-            ws.write(asio::buffer(std::to_string(seconds.count()) + " " + std::to_string(nanoseconds.count())));
+            if (ws.got_text()) {
+                std::cerr << "Payload should be binary but received a text frame." << std::endl;
+            } else if (buffer.size() != sizeof(received_timestamp)) {
+                std::cerr << "Received payload size is not valid for timestamp." << std::endl;
+            } else {
+                std::memcpy(&received_timestamp, buffer.data().data(), sizeof(received_timestamp));
+
+                std::cout << "Received timestamp (seconds and nanoseconds) - Seconds: " << received_timestamp.seconds
+                          << ", Nanoseconds: " << received_timestamp.nanoseconds << std::endl;
+            }
         } else {
             std::cerr << "Failed to establish connection." << std::endl;
         }
+
+        // Gracefully close the WebSocket connection
+        ws.close(websocket::close_code::normal);
+        io_context.run_for(std::chrono::seconds(1)); // Allow time for closing
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
