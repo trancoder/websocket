@@ -1,8 +1,12 @@
+#define BOOST_BIND_GLOBAL_PLACEHOLDERS
+
 #include <iostream>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/bind/bind.hpp> // Add this header
+#include <boost/bind/placeholders.hpp> // Add this header
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
@@ -15,6 +19,7 @@ struct Timestamp {
 };
 
 int main() {
+    double launchTime = 0;
     try {
         asio::io_context io_context;
         websocket::stream<asio::ip::tcp::socket> ws(io_context);
@@ -25,7 +30,7 @@ int main() {
         ws.accept();
 
         if (ws.is_open()) {
-            std::cout << "Waiting for timestamp (seconds and nanoseconds)..." << std::endl;
+            std::cout << "Waiting for json message..." << std::endl;
 
             Timestamp received_timestamp;
             beast::flat_buffer buffer;
@@ -41,6 +46,9 @@ int main() {
             std::cout << "Received JSON message:\n";
             for (const auto& pair : pt) {
                 std::cout << pair.first << ": " << pair.second.get_value<std::string>() << std::endl;
+                if (pair.first == "launchTime") {
+                    launchTime = pair.second.get_value<double>();
+                }
             }
 
         } else {
@@ -54,5 +62,6 @@ int main() {
         std::cerr << "Error: " << e.what() << std::endl;
     }
 
+    std::cout << "Launch Time = " << launchTime << std::endl;
     return 0;
 }
