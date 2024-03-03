@@ -24,7 +24,12 @@ int main() {
         asio::io_context io_context;
         websocket::stream<asio::ip::tcp::socket> ws(io_context);
 
-        asio::ip::tcp::acceptor acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 9002));
+        //asio::ip::tcp::acceptor acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 9002));
+        std::string AfatdsIp = "127.0.0.1";
+        short unsigned int AfatdsPort = 54800;
+        boost::asio::ip::tcp::endpoint AfatdsEndpoint(boost::asio::ip::make_address(AfatdsIp), AfatdsPort);
+        asio::ip::tcp::acceptor acceptor(io_context, AfatdsEndpoint);
+
         acceptor.accept(ws.next_layer());
 
         ws.accept();
