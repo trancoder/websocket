@@ -45,67 +45,41 @@ int main() {
             ws.handshake("localhost", "/");            
             
             // Multi buffer for incoming messages
-            beast::multi_buffer buffer;
+            beast::flat_buffer buffer;
 
-            timer.async_wait([&](const boost::system::error_code& ec) {
+            // Start asynchronous read operation        
+            ws.async_read(buffer, [&](beast::error_code ec, std::size_t bytes_transferred) {
                 if (!ec) {
-                    // Check for incoming messages
-                    ws.async_read(buffer, [&](beast::error_code ec, std::size_t bytes_transferred) {
-                        if (!ec) {
-                            // Parse the received message as JSON
-                            boost::json::error_code json_ec;
-                            std::string message = beast::buffers_to_string(buffer.data());
-                            std::istringstream iss(message);
-                            boost::property_tree::ptree pt;
-                            boost::property_tree::json_parser::read_json(iss, pt);
+                    
+                    try {                        
+                        //Parse the received message as JSON                        
+                        std::string message = beast::buffers_to_string(buffer.data());
+                        std::istringstream iss(message);
+                        boost::property_tree::ptree pt;
+                        boost::property_tree::json_parser::read_json(iss, pt);
 
-                            // Display content
-                            std::cout << "Received JSON message:\n";
-                            for (const auto& pair : pt) {
-                                std::cout << pair.first << ": " << pair.second.get_value<std::string>() << std::endl;
-                                if (pair.first == "launchTime") {
-                                    launchTime = pair.second.get_value<double>();
-                                    launchTimeStampReceived = true;
-                                    ws.close(websocket::close_code::normal);
-                                    io_context.run_for(std::chrono::seconds(1)); // Allow time for closing
-                                }
+                        // Display content
+                        std::cout << "Received JSON message:\n";
+                        for (const auto& pair : pt) {
+                            std::cout << pair.first << ": " << pair.second.get_value<std::string>() << std::endl;
+                            if (pair.first == "launchTime") {
+                                launchTime = pair.second.get_value<double>();
+                                launchTimeStampReceived = true;
+                                ws.close(websocket::close_code::normal);
+                                io_context.run_for(std::chrono::seconds(1)); // Allow time for closing
                             }
-                        } else {
-                            std::cerr << "WebSocket read error: " << ec.message() << std::endl;
                         }
-                    });
-                    // Set the timer to check again after 100 microseconds
-                    timer.expires_after(boost::asio::chrono::microseconds(100));
-                    timer.async_wait([&](const boost::system::error_code& ec) {});
+                    } catch (const std::exception& e) {
+                        std::cerr << "Exception: " << e.what() << std::endl;
+                    }
                 } else {
-                    std::cerr << "Timer error: " << ec.message() << std::endl;
+                    std::cerr << "WebSocket read error: " << ec.message() << std::endl;
                 }
             });
 
-
-
-            // Timestamp received_timestamp;
-            // beast::flat_buffer buffer;
-            // ws.read(buffer);
-
-            // // Parse JSON message
-            // std::cout << "Parsing json file...." << std::endl;
-            // std::string message = beast::buffers_to_string(buffer.data());
-            // std::istringstream iss(message);
-            // boost::property_tree::ptree pt;
-            // boost::property_tree::json_parser::read_json(iss, pt);
-
-            // // Display content
-            // std::cout << "Received JSON message:\n";
-            // for (const auto& pair : pt) {
-            //     std::cout << pair.first << ": " << pair.second.get_value<std::string>() << std::endl;
-            //     if (pair.first == "launchTime") {
-            //         launchTime = pair.second.get_value<double>();
-            //         launchTimeStampReceived = true;
-            //         ws.close(websocket::close_code::normal);
-            //         io_context.run_for(std::chrono::seconds(1)); // Allow time for closing
-            //     }
-            // }                                       
+            // Run the io_context to start processing asynchronous operations
+            io_context.run();
+                                             
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
             sleep(1);
