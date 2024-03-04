@@ -32,13 +32,15 @@ int main() {
             // Resolve the WebSocket domain name
             auto const results = resolver.resolve("localhost", "54800");
 
-            std::cout << "Connecting to the AFATDS...\n";
+            std::cout << "Connecting to the server...\n";
 
             // Connect to the WebSocket server
-            asio::connect(ws.next_layer(), results.begin(), results.end());            
+            asio::connect(ws.next_layer(), results.begin(), results.end());
+
+            std::cout << "Connection to server is established\n";
 
             // Perform the WebSocket handshake
-            ws.handshake("localhost", "/");
+            ws.handshake("localhost", "/");            
             
             Timestamp received_timestamp;
             beast::flat_buffer buffer;

@@ -14,6 +14,8 @@ class WebSocketServer(WebSocket):
             with open("sample.json", "r") as file:
                 json_data = file.read()
 
+            raw_input("Press enter to send the timestamp: ")
+
             print("Sending JSON data...")
 
             # Send the JSON data over the WebSocket
@@ -21,16 +23,18 @@ class WebSocketServer(WebSocket):
 
             print("JSON data sent successfully")
         except Exception as e:
-            print("Error occurred: {}".format(e))        
+            print("Error occurred: {}".format(e))
 
     def handleClose(self):
-        print("Client disconnected.")
+        print("Client disconnected. Press Ctrl+C to end this test server...")
+        
 
 def main():
     # Create WebSocket server
     server = SimpleWebSocketServer('', 54800, WebSocketServer)
     print("Server started, waiting for connections...")
     server.serveforever()
+    
 
 if __name__ == "__main__":
     main()
