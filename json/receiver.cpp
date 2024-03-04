@@ -11,6 +11,7 @@
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
+using tcp = boost::asio::ip::tcp;     // from <boost/asio/ip/tcp.hpp>
 
 // Define a struct to hold timestamp data (seconds and nanoseconds in UTC)
 struct Timestamp {
@@ -23,65 +24,47 @@ int main() {
     bool launchTimeStampReceived = false;
     while (!launchTimeStampReceived){
         try {
+            // Prepare boost::asio objects
             asio::io_context io_context;
-            websocket::stream<asio::ip::tcp::socket> ws(io_context);
+            tcp::resolver resolver(io_context);
+            beast::websocket::stream<tcp::socket> ws(io_context);
 
-            //asio::ip::tcp::acceptor acceptor(io_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 9002));
-            std::string AfatdsIp = "127.0.0.1";
-            short unsigned int AfatdsPort = 54800;
-            boost::asio::ip::tcp::endpoint AfatdsEndpoint(boost::asio::ip::make_address(AfatdsIp), AfatdsPort);
+            // Resolve the WebSocket domain name
+            auto const results = resolver.resolve("localhost", "54800");
+
+            std::cout << "Connecting to the AFATDS...\n";
+
+            // Connect to the WebSocket server
+            asio::connect(ws.next_layer(), results.begin(), results.end());            
+
+            // Perform the WebSocket handshake
+            ws.handshake("localhost", "/");
             
-            std::cout << "Waiting for the websocket Connection..." << std::endl;
+            Timestamp received_timestamp;
+            beast::flat_buffer buffer;
+            ws.read(buffer);
 
-            // sync operation (will block until connection is established)
-            asio::ip::tcp::acceptor acceptor(io_context, AfatdsEndpoint);
+            // Parse JSON message
+            std::cout << "Parsing json file...." << std::endl;
+            std::string message = beast::buffers_to_string(buffer.data());
+            std::istringstream iss(message);
+            boost::property_tree::ptree pt;
+            boost::property_tree::json_parser::read_json(iss, pt);
 
-            //returns the next layer of the WebSocket stream, which is the underlying TCP socket
-            acceptor.accept(ws.next_layer());
-
-            // for hand shaking (exeception will be thrown at this step)
-            ws.accept();
-
-            std::cout << "Websocket Connection is established succesfully" << std::endl;
-
-            if (ws.is_open()) {
-                std::cout << "Waiting for json message..." << std::endl;
-
-                try {
-                    Timestamp received_timestamp;
-                    beast::flat_buffer buffer;
-                    ws.read(buffer);
-
-                    // Parse JSON message
-                    std::cout << "Parsing json file...." << std::endl;
-                    std::string message = beast::buffers_to_string(buffer.data());
-                    std::istringstream iss(message);
-                    boost::property_tree::ptree pt;
-                    boost::property_tree::json_parser::read_json(iss, pt);
-
-                    // Display content
-                    std::cout << "Received JSON message:\n";
-                    for (const auto& pair : pt) {
-                        std::cout << pair.first << ": " << pair.second.get_value<std::string>() << std::endl;
-                        if (pair.first == "launchTime") {
-                            launchTime = pair.second.get_value<double>();
-                            launchTimeStampReceived = true;
-                        }
-                    }
+            // Display content
+            std::cout << "Received JSON message:\n";
+            for (const auto& pair : pt) {
+                std::cout << pair.first << ": " << pair.second.get_value<std::string>() << std::endl;
+                if (pair.first == "launchTime") {
+                    launchTime = pair.second.get_value<double>();
+                    launchTimeStampReceived = true;
+                    ws.close(websocket::close_code::normal);
+                    io_context.run_for(std::chrono::seconds(1)); // Allow time for closing
                 }
-                catch (const boost::beast::system_error& e)
-                {                
-                    std::cerr <<  e.what() << std::endl;
-                }            
-            } else {
-                std::cerr << "Failed to establish connection." << std::endl;
-            }
-
-            // Gracefully close the WebSocket connection
-            ws.close(websocket::close_code::normal);
-            io_context.run_for(std::chrono::seconds(1)); // Allow time for closing
+            }                                       
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
+            sleep(1);
         }
     }
     
